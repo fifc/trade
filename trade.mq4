@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2014, MetaQuotes Software Corp."
 #property link      "http://www.mql5.com"
-#property version   "1.05r1"
+#property version   "1.06"
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -25,7 +25,7 @@
 input int user_slippage = 2; 
 input int user_tp = 60;
 input int user_sl = 60;
-input int use_tp_sl = 1;
+input int use_tp_sl = 0;
 input double profit_lock = 0.90;
 // Money Management
 input int money_management = 1;
@@ -62,8 +62,8 @@ public:
    double next_lots;
    double update();
    int test();
-   int ActualizarOrdenes();
-   int get_history_info();
+   int ActualizarOrdenes(datetime date = 0);
+   int get_history_info(datetime date = 0);
 } g_account;
 
 int g_slippage=0;
@@ -503,10 +503,8 @@ void InicializarVariables()
 }
 
 #ifndef __MQL5__
-int CAccountMgr::get_history_info()
+int CAccountMgr::get_history_info(datetime date = 0)
 {
-  g_orderlist.last_order_lots = 0;
-  g_orderlist.last_order_profit = 0;
 
   bool encontrada=false;
   if (OrdersHistoryTotal()>0)
@@ -530,15 +528,17 @@ int CAccountMgr::get_history_info()
    return 0;
 }
 #else
-int CAccountMgr::get_history_info()
+int CAccountMgr::get_history_info(datetime date = 0)
 {
-  g_orderlist.last_order_lots = 0;
-  g_orderlist.last_order_profit = 0;
 
-  HistorySelect(0, TimeCurrent());
+  datetime curtime = TimeCurrent();
+  datetime fromtime = curtime - 3600 * 24;
+  if (date != 0) fromtime = curtime - date;
+  
+  HistorySelect(fromtime, curtime);
   
   bool encontrada=false;
-   int count=HistoryDealsTotal();
+  int count=HistoryDealsTotal();
   if (count > 0)
   {
     int i = 1;
@@ -562,12 +562,12 @@ int CAccountMgr::get_history_info()
 // ------------------------------------------------------------------------------------------------
 // ACTUALIZAR ORDENES
 // ------------------------------------------------------------------------------------------------
-int CAccountMgr::ActualizarOrdenes()
+int CAccountMgr::ActualizarOrdenes(datetime date = 0)
 {
 
-   get_history_info();
+  get_history_info(date);
 
-  int ordenes=0;
+  int ordenes = 0;
   max_potential_loss = 0;
   
   for (CLinkedNode *node = g_orderlist.begin(); node != g_orderlist.end(); node = (CLinkedNode *)node.Next())
@@ -1878,6 +1878,7 @@ int OnInit()
       return INIT_FAILED;
    }
 #endif
+   g_account.ActualizarOrdenes(3600 * 24 * 7);
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
@@ -2049,3 +2050,4 @@ double GetCurrencyRate(string base, string profit)
    return 0;
 }
 #endif 
+
